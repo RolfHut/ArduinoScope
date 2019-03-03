@@ -25,6 +25,10 @@
 /**************************************************************************/
 
 
+const float alpha = 0.2;
+float x = 0.0;
+float y = 0.0;
+float z = 0.0;
 
 
 Adafruit_MMA8451 mma = Adafruit_MMA8451();
@@ -55,8 +59,13 @@ void loop() {
   /* Get a new sensor event */ 
   sensors_event_t event; 
   mma.getEvent(&event);
-  Serial.print(event.acceleration.x); Serial.print(',');
-  Serial.print(event.acceleration.y); Serial.print(',');
-  Serial.println(event.acceleration.z); 
+  x = ((1 - alpha) * x ) + (alpha * event.acceleration.x);
+  y = ((1 - alpha) * y ) + (alpha * event.acceleration.y);
+  z = ((1 - alpha) * z ) + (alpha * event.acceleration.z);
+    
+  /* Display the results (acceleration is measured in m/s^2) */
+  Serial.print(x); Serial.print(",");
+  Serial.print(y); Serial.print(",");
+  Serial.println(z);
 
 }

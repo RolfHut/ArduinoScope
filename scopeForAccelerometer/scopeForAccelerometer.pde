@@ -29,7 +29,7 @@
  */ 
 import processing.serial.*;
 
-int portNumber = 9; //which port to select. Run the 
+int portNumber = 10; //which port to select. Run the 
 
 Serial port;  // Create object from Serial class
 float val;      // Data received from the serial port
@@ -38,7 +38,15 @@ float[] valuesY;
 float[] valuesZ;
 float zoom;
 byte lf = 10;
-//float[] values;
+float alpha = 0.01;
+
+boolean[] Rising = {true,true,true};
+long[] topTime = {0,0,0};
+long[] prevTopTime = {0,0,0};
+float[] topValue = {0.0, 0.0, 0.0};
+float[] bottomValue = {0.0, 0.0, 0.0};
+float[] amp = {0, 0, 0};
+float[] freq = {0, 0, 0};
 
 void setup() 
 {
@@ -74,10 +82,45 @@ void pushValue(float valueX,float valueY,float valueZ) {
     valuesY[i] = valuesY[i+1];
     valuesZ[i] = valuesZ[i+1];
   }
+
+  if ((valuesX[width-1] > valueX) & (Rising[0])){
+    processTop(0,valueX);
+  } else if ((valuesX[width-1] < valueX) & (!Rising[0])){
+    processBottom(0,valueX);
+  }
+  if ((valuesY[width-1] > valueY) & (Rising[1])){
+    processTop(1,valueY);
+  } else if ((valuesY[width-1] < valueY) & (!Rising[1])){
+    processBottom(1,valueY);
+  }
+  if ((valuesZ[width-1] > valueZ) & (Rising[2])){
+    processTop(2,valueZ);
+  } else if ((valuesZ[width-1] < valueZ) & (!Rising[2])){
+    processBottom(2,valueZ);
+  }
+  
   valuesX[width-1] = valueX;
   valuesY[width-1] = valueY;
   valuesZ[width-1] = valueZ;
 }
+
+void processTop(int dim, float value){
+    Rising[dim] = false;
+    prevTopTime[dim]=topTime[dim];
+    topTime[dim]=millis();
+    topValue[dim]=value;
+    amp[dim] = ((1 - alpha) * amp[dim]) + (alpha * (topValue[dim]-bottomValue[dim]));
+    if ((topTime[dim] - prevTopTime[dim]) > 1){
+      freq[dim] = ((1 - alpha) * freq[dim]) + (alpha * (1000.0 / (topTime[dim] - prevTopTime[dim])));
+    }
+}
+
+void processBottom(int dim, float value){
+  Rising[dim] = true;
+  bottomValue[dim]=value;
+}
+
+
 
 void drawLines() {
   stroke(255);
@@ -130,9 +173,23 @@ void keyReleased() {
   }
 }
 
+void drawStats(){
+  textSize(32);
+  fill(255);
+  text(amp[0],10,32);
+  text(freq[0],10,64);
+  fill(255,0,0);
+  text(amp[1],150,32);
+  text(freq[2],150,64);
+  fill(0,255,0);
+  text(amp[2],300,32);
+  text(freq[2],300,64);
+}
+
 void draw()
 {
   background(0);
   drawGrid();
   drawLines();
+  drawStats();
 }
