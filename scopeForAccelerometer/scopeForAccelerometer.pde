@@ -29,20 +29,19 @@
  */ 
 import processing.serial.*;
 
-int portNumber = 10; //which port to select. Run the 
+int portNumber = 13; //which port to select. Run the 
 
 Serial port;  // Create object from Serial class
 float val;      // Data received from the serial port
-float[] valuesX;
-float[] valuesY;
-float[] valuesZ;
+float[][] values;
+float AR[] = {0.0,0.0,0.0};
+float ARalpha = 0.01;
 float zoom;
 byte lf = 10;
-float alpha = 0.01;
+float alpha = 0.5;
 
-boolean[] Rising = {true,true,true};
-long[] topTime = {0,0,0};
-long[] prevTopTime = {0,0,0};
+long[] triggerTime = {0,0,0};
+long[] prevTriggerTime = {0,0,0};
 float[] topValue = {0.0, 0.0, 0.0};
 float[] bottomValue = {0.0, 0.0, 0.0};
 float[] amp = {0, 0, 0};
@@ -55,9 +54,7 @@ void setup()
   println(Serial.list());
   port = new Serial(this, Serial.list()[portNumber], 115200);
   port.bufferUntil(lf);
-  valuesX = new float[width];
-  valuesY = new float[width];
-  valuesZ = new float[width];
+  values = new float[3][width];
   //values = new float[3];
   zoom = 1.0f;
   smooth();
@@ -68,57 +65,52 @@ int getY(float val) {
 }
 
 void serialEvent(Serial port) {
-  String[] values = split(port.readString(),",");
-  if (values.length ==3){
-    pushValue(float(values[0]),float(values[1]),float(values[2]));
+  String[] valuesString = split(port.readString(),",");
+  if (valuesString.length ==3){
+    pushValue(float(valuesString));
   }
   
 }
 
 //
-void pushValue(float valueX,float valueY,float valueZ) {
-  for (int i=0; i<width-1; i++){
-    valuesX[i] = valuesX[i+1];
-    valuesY[i] = valuesY[i+1];
-    valuesZ[i] = valuesZ[i+1];
-  }
-
-  if ((valuesX[width-1] > valueX) & (Rising[0])){
-    processTop(0,valueX);
-  } else if ((valuesX[width-1] < valueX) & (!Rising[0])){
-    processBottom(0,valueX);
-  }
-  if ((valuesY[width-1] > valueY) & (Rising[1])){
-    processTop(1,valueY);
-  } else if ((valuesY[width-1] < valueY) & (!Rising[1])){
-    processBottom(1,valueY);
-  }
-  if ((valuesZ[width-1] > valueZ) & (Rising[2])){
-    processTop(2,valueZ);
-  } else if ((valuesZ[width-1] < valueZ) & (!Rising[2])){
-    processBottom(2,valueZ);
-  }
-  
-  valuesX[width-1] = valueX;
-  valuesY[width-1] = valueY;
-  valuesZ[width-1] = valueZ;
-}
-
-void processTop(int dim, float value){
-    Rising[dim] = false;
-    prevTopTime[dim]=topTime[dim];
-    topTime[dim]=millis();
-    topValue[dim]=value;
-    amp[dim] = ((1 - alpha) * amp[dim]) + (alpha * (topValue[dim]-bottomValue[dim]));
-    if ((topTime[dim] - prevTopTime[dim]) > 1){
-      freq[dim] = ((1 - alpha) * freq[dim]) + (alpha * (1000.0 / (topTime[dim] - prevTopTime[dim])));
+void pushValue(float[] newValues) {
+  //loop through dimensions
+  for (int dim=0; dim<3; dim++){
+    
+    //shift all values in the screen buffer to make room for the new value
+    for (int i=0; i<width-1; i++){
+      values[dim][i] = values[dim][i+1];
     }
+    //add new value at the end of the screen buffer 
+    values[dim][width-1] = newValues[dim];
+    
+    //update long running averages
+    AR[dim] = ((1 - ARalpha) * AR[dim]) + (ARalpha * newValues[dim]);
+
+    //check for maximum or minimum value
+    topValue[dim]=max(topValue[dim],newValues[dim]);
+    bottomValue[dim]=min(bottomValue[dim],newValues[dim]);
+    
+    //if value crosses the AR[dim] line, we have had a full period and will calculate amplitude and frequency
+    if ((values[dim][width-10] < AR[dim] ) & (newValues[dim] > AR[dim])){
+      processTrigger(dim);
+    }
+  }
 }
 
-void processBottom(int dim, float value){
-  Rising[dim] = true;
-  bottomValue[dim]=value;
+void processTrigger(int dim){
+    prevTriggerTime[dim]=triggerTime[dim];
+    triggerTime[dim]=millis();
+    amp[dim] = ((1 - alpha) * amp[dim]) + (alpha * (topValue[dim]-bottomValue[dim]));
+    
+    float freqObs = 1000.0 / (triggerTime[dim] - prevTriggerTime[dim]);
+    if (freqObs < 50.0){
+      freq[dim] = ((1 - alpha) * freq[dim]) + (alpha * (freqObs));
+    }
+    topValue[dim]=AR[dim];
+    bottomValue[dim]=AR[dim];
 }
+
 
 
 
@@ -127,18 +119,18 @@ void drawLines() {
   
   int displayWidth = (int) (width / zoom);
   
-  int k = valuesX.length - displayWidth;
+  int k = values[0].length - displayWidth;
   
   int x0 = 0;
-  int yX0 = getY(valuesX[k]);
-  int yY0 = getY(valuesY[k]);
-  int yZ0 = getY(valuesZ[k]);
+  int yX0 = getY(values[0][k]);
+  int yY0 = getY(values[1][k]);
+  int yZ0 = getY(values[2][k]);
   for (int i=1; i<displayWidth; i++) {
     k++;
     int x1 = (int) (i * (width-1) / (displayWidth-1));
-    int yX1 = getY(valuesX[k]);
-    int yY1 = getY(valuesY[k]);
-    int yZ1 = getY(valuesZ[k]);
+    int yX1 = getY(values[0][k]);
+    int yY1 = getY(values[1][k]);
+    int yZ1 = getY(values[2][k]);
     stroke(255);
     line(x0, yX0, x1, yX1);
     stroke(255,0,0);
@@ -180,7 +172,7 @@ void drawStats(){
   text(freq[0],10,64);
   fill(255,0,0);
   text(amp[1],150,32);
-  text(freq[2],150,64);
+  text(freq[1],150,64);
   fill(0,255,0);
   text(amp[2],300,32);
   text(freq[2],300,64);
