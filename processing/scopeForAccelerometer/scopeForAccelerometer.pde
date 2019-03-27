@@ -171,13 +171,13 @@ void keyReleased() {
 void drawStats(){
   textSize(32);
   fill(255);
-  text("A "+ nf(amp[0],2,1),10,32);
+  text("A "+ nf(amp[0],1,2),10,32);
   text("F "+nf(freq[0],2,1),10,64);
   fill(255,0,0);
-  text("A "+ nf(amp[1],2,1),150,32);
+  text("A "+ nf(amp[1],1,2),150,32);
   text("F "+nf(freq[1],2,1),150,64);
   fill(0,255,0);
-  text("A "+ nf(amp[2],2,1),300,32);
+  text("A "+ nf(amp[2],1,2),300,32);
   text("F "+nf(freq[2],2,1),300,64);
 }
 
