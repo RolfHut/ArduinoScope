@@ -162,20 +162,23 @@ void keyReleased() {
       if (zoom < 1.0f)
         zoom *= 2.0f;
       break;
+    case 's':
+      exit();
+      break;
   }
 }
 
 void drawStats(){
   textSize(32);
   fill(255);
-  text(amp[0],10,32);
-  text(freq[0],10,64);
+  text("A "+ nf(amp[0],2,1),10,32);
+  text("F "+nf(freq[0],2,1),10,64);
   fill(255,0,0);
-  text(amp[1],150,32);
-  text(freq[1],150,64);
+  text("A "+ nf(amp[1],2,1),150,32);
+  text("F "+nf(freq[1],2,1),150,64);
   fill(0,255,0);
-  text(amp[2],300,32);
-  text(freq[2],300,64);
+  text("A "+ nf(amp[2],2,1),300,32);
+  text("F "+nf(freq[2],2,1),300,64);
 }
 
 void draw()
