@@ -181,10 +181,18 @@ void drawStats(){
   text("F "+nf(freq[2],2,1),300,64);
 }
 
+void drawInfo(){
+  textSize(16);
+  fill(255);
+  text("s: stop program \n+: zoom in (time)\n-: zoom out (time)",450,400);
+
+}
+
 void draw()
 {
   background(0);
   drawGrid();
   drawLines();
   drawStats();
+  drawInfo();
 }
