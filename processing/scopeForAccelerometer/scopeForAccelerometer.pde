@@ -38,7 +38,7 @@ float AR[] = {0.0,0.0,0.0};
 float ARalpha = 0.01;
 float zoom;
 byte lf = 10;
-float alpha = 0.5;
+float alpha = 0.1;
 
 long[] triggerTime = {0,0,0};
 long[] prevTriggerTime = {0,0,0};
