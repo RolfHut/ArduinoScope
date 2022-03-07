@@ -34,18 +34,18 @@ int portNumber = 9; //which port to select. Run the
 Serial port;  // Create object from Serial class
 float val;      // Data received from the serial port
 float[][] values;
-float AR[] = {0.0,0.0,0.0};
-float ARalpha = 0.01;
+float AR[] = {1.0,1.0};
+float ARalpha = 0.005;
 float zoom;
 byte lf = 10;
-float alpha = 0.1;
+float alpha = 0.4;
 
-long[] triggerTime = {0,0,0};
-long[] prevTriggerTime = {0,0,0};
-float[] topValue = {0.0, 0.0, 0.0};
-float[] bottomValue = {0.0, 0.0, 0.0};
-float[] amp = {0, 0, 0};
-float[] freq = {0, 0, 0};
+long[] triggerTime = {0,0};
+long[] prevTriggerTime = {0,0};
+float[] topValue = {0.0, 0.0};
+float[] bottomValue = {0.0, 0.0};
+float[] amp = {0, 0};
+float[] freq = {0, 0};
 
 void setup() 
 {
@@ -54,19 +54,19 @@ void setup()
   println(Serial.list());
   port = new Serial(this, Serial.list()[portNumber], 115200);
   port.bufferUntil(lf);
-  values = new float[3][width];
+  values = new float[2][width];
   //values = new float[3];
   zoom = 1.0f;
   smooth();
 }
 
 int getY(float val) {
-  return (int)(((height/2) - val / 40.0f * (height))-1);
+  return (int)(((height/2) - (val - 9.81) / 40.0f * (height))-1);
 }
 
 void serialEvent(Serial port) {
   String[] valuesString = split(port.readString(),",");
-  if (valuesString.length ==3){
+  if (valuesString.length ==6){
     pushValue(float(valuesString));
   }
   
@@ -75,40 +75,46 @@ void serialEvent(Serial port) {
 //
 void pushValue(float[] newValues) {
   //loop through dimensions
-  for (int dim=0; dim<3; dim++){
-    
+  for (int sensor=0; sensor < 2; sensor++){
+    float rmsNewValue = 0.0;
+    for (int dim=0; dim<3; dim++){
+      int readNr = dim * 2 + sensor;
+      rmsNewValue = rmsNewValue + (newValues[readNr]*newValues[readNr]);
+    }
+    rmsNewValue = sqrt(rmsNewValue);
+      
     //shift all values in the screen buffer to make room for the new value
     for (int i=0; i<width-1; i++){
-      values[dim][i] = values[dim][i+1];
+      values[sensor][i] = values[sensor][i+1];
     }
     //add new value at the end of the screen buffer 
-    values[dim][width-1] = newValues[dim];
+    values[sensor][width-1] = rmsNewValue;
     
     //update long running averages
-    AR[dim] = ((1 - ARalpha) * AR[dim]) + (ARalpha * newValues[dim]);
+    AR[sensor] = ((1 - ARalpha) * AR[sensor]) + (ARalpha * rmsNewValue);
 
     //check for maximum or minimum value
-    topValue[dim]=max(topValue[dim],newValues[dim]);
-    bottomValue[dim]=min(bottomValue[dim],newValues[dim]);
+    topValue[sensor]=max(topValue[sensor],rmsNewValue);
+    bottomValue[sensor]=min(bottomValue[sensor],rmsNewValue);
     
     //if value crosses the AR[dim] line, we have had a full period and will calculate amplitude and frequency
-    if ((values[dim][width-10] < AR[dim] ) & (newValues[dim] > AR[dim])){
-      processTrigger(dim);
+    if ((values[sensor][width-10] < AR[sensor] ) & (rmsNewValue > AR[sensor])){
+      processTrigger(sensor);
     }
   }
 }
 
-void processTrigger(int dim){
-    prevTriggerTime[dim]=triggerTime[dim];
-    triggerTime[dim]=millis();
-    amp[dim] = ((1 - alpha) * amp[dim]) + (alpha * (topValue[dim]-bottomValue[dim]));
+void processTrigger(int sensor){
+    prevTriggerTime[sensor]=triggerTime[sensor];
+    triggerTime[sensor]=millis();
+    amp[sensor] = ((1 - alpha) * amp[sensor]) + (alpha * (topValue[sensor]-bottomValue[sensor]));
     
-    float freqObs = 1000.0 / (triggerTime[dim] - prevTriggerTime[dim]);
-    if (freqObs < 50.0){
-      freq[dim] = ((1 - alpha) * freq[dim]) + (alpha * (freqObs));
+    float freqObs = 1000 / (float)(triggerTime[sensor] - prevTriggerTime[sensor]);
+    if (freqObs <20){
+      freq[sensor] = ((1 - alpha) * freq[sensor]) + (alpha * (freqObs));
     }
-    topValue[dim]=AR[dim];
-    bottomValue[dim]=AR[dim];
+    topValue[sensor]=AR[sensor];
+    bottomValue[sensor]=AR[sensor];
 }
 
 
@@ -122,31 +128,30 @@ void drawLines() {
   int k = values[0].length - displayWidth;
   
   int x0 = 0;
-  int yX0 = getY(values[0][k]);
-  int yY0 = getY(values[1][k]);
-  int yZ0 = getY(values[2][k]);
+  int y10 = getY(values[0][k]);
+  int y20 = getY(values[1][k]);
   for (int i=1; i<displayWidth; i++) {
     k++;
     int x1 = (int) (i * (width-1) / (displayWidth-1));
-    int yX1 = getY(values[0][k]);
-    int yY1 = getY(values[1][k]);
-    int yZ1 = getY(values[2][k]);
-    stroke(255);
-    line(x0, yX0, x1, yX1);
+    int y11 = getY(values[0][k]);
+    int y21 = getY(values[1][k]);
     stroke(255,0,0);
-    line(x0, yY0, x1, yY1);
+    line(x0, y10, x1, y11);
     stroke(0,255,0);
-    line(x0, yZ0, x1, yZ1);
+    line(x0, y20, x1, y21);
     x0 = x1;
-    yX0 = yX1;
-    yY0 = yY1;
-    yZ0 = yZ1;
+    y10 = y11;
+    y20 = y21;
   }
 }
 
 void drawGrid() {
   stroke(255, 0, 0);
-  line(0, height/2, width, height/2);
+  //line(0, height/2, width, height/2);
+  line(0, getY(AR[0]), width, getY(AR[0]));
+  stroke(0,255,0);
+  line(0, getY(AR[1]), width, getY(AR[1]));
+
 }
 
 void keyReleased() {
@@ -170,15 +175,12 @@ void keyReleased() {
 
 void drawStats(){
   textSize(32);
-  fill(255);
-  text("A "+ nf(amp[0],1,2),10,32);
-  text("F "+nf(freq[0],2,1),10,64);
   fill(255,0,0);
-  text("A "+ nf(amp[1],1,2),150,32);
-  text("F "+nf(freq[1],2,1),150,64);
+  text("A1 "+ nf(amp[0],1,2),10,32);
+  text("F1 "+nf(freq[0],2,1),10,64);
   fill(0,255,0);
-  text("A "+ nf(amp[2],1,2),300,32);
-  text("F "+nf(freq[2],2,1),300,64);
+  text("A2 "+ nf(amp[1],1,2),10,420);
+  text("F2 "+nf(freq[1],2,1),10,452);
 }
 
 void drawInfo(){
