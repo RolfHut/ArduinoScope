@@ -14,8 +14,8 @@ float z2 = 0.0;
 /* Uncomment following line for default Wire bus      */
 /* and alternative I2C address 0X1D. Connect pin SDO  */
 /* to Vcc for this. */
-Adafruit_ADXL343 accel1 = Adafruit_ADXL343(12345, true);
-Adafruit_ADXL343 accel2 = Adafruit_ADXL343(12345, false);
+Adafruit_ADXL343 accel1 = Adafruit_ADXL343(12345);
+Adafruit_ADXL343 accel2 = Adafruit_ADXL343(12346);
 
 
 
@@ -33,7 +33,7 @@ void setup(void)
     Serial.println("Ooops, no ADXL343 nr1 detected ... Check your wiring!");
     while(1);
   }
-  if(!accel2.begin())
+  if(!accel2.begin(0x1D))
   {
     /* There was a problem detecting the ADXL343 ... check your connections */
     Serial.println("Ooops, no ADXL343 nr2 detected ... Check your wiring!");

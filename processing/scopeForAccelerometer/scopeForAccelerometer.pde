@@ -29,7 +29,7 @@
  */ 
 import processing.serial.*;
 
-int portNumber = 13; //which port to select. Run the 
+int portNumber = 9; //which port to select. Run the 
 
 Serial port;  // Create object from Serial class
 float val;      // Data received from the serial port
